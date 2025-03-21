@@ -1,18 +1,39 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useCallback } from "react";
+import axios, { AxiosError } from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import VideoInfo from "./components/VideoInfo";
 import History from "./components/History";
-import ProgressBar from "./components/ProgressBar";
+
+interface VideoFormat {
+  format_id: string;
+  label: string;
+}
+
+interface VideoEntry {
+  url: string;
+  title: string;
+  thumbnail: string;
+  duration?: number;
+  video_formats?: VideoFormat[];
+  downloaded: boolean;
+}
 
 const App: React.FC = () => {
   const [url, setUrl] = useState<string>("");
-  const [videoInfo, setVideoInfo] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
+  const [videoInfo, setVideoInfo] = useState<VideoEntry | null>(null);
+  const [history, setHistory] = useState<VideoEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [downloadId, setDownloadId] = useState<string | null>(null);
   const [progress, setProgress] = useState<number>(0);
-  const [status, setStatus] = useState<string>(""); // 'downloading', 'completed', or 'error'
+  const [lastProgressTime, setLastProgressTime] = useState<number>(0);
+  const [status, setStatus] = useState<"downloading" | "error" | "">("");
+  const [error, setError] = useState<string | null>(null);
 
+  const BASE_URL = "http://0.0.0.0:5001";
+  const PROGRESS_TIMEOUT = 30000; // 30 seconds
+
+  // Load history from localStorage on mount
   useEffect(() => {
     const storedHistory = localStorage.getItem("videoHistory");
     if (storedHistory) {
@@ -20,110 +41,259 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const BASE_URL = "http://127.0.0.1:5000"; // Backend API URL
+  const checkProgress = useCallback(async () => {
+    if (!downloadId || status !== "downloading") return;
 
-  const fetchVideoInfo = async () => {
+    console.log(`Checking progress for ${downloadId}`);
+    try {
+      const response = await axios.get(
+        `${BASE_URL}/progress?download_id=${downloadId}`
+      );
+      const {
+        progress,
+        status: newStatus,
+        error: backendError,
+        filename,
+      } = response.data;
+      console.log("Progress response:", response.data);
+
+      setProgress(progress);
+      setStatus(newStatus);
+
+      if (progress > 0 && progress < 100) {
+        setLastProgressTime(Date.now());
+      }
+
+      if (newStatus === "completed") {
+        console.log("Download completed, fetching file...");
+        await downloadFile();
+        updateDownloadStatus(true);
+        toast.success(`Download completed: ${videoInfo?.title || "Video"}`, {
+          position: "top-right",
+        });
+        setStatus("");
+        setDownloadId(null);
+        setProgress(0);
+      } else if (newStatus === "error") {
+        setError(backendError || "Download failed");
+        toast.error(backendError || "Download failed", {
+          position: "top-right",
+        });
+        setStatus("");
+        setDownloadId(null);
+        setProgress(0);
+      } else if (
+        Date.now() - lastProgressTime > PROGRESS_TIMEOUT &&
+        progress < 100
+      ) {
+        await cancelDownload();
+        setError("Download stalled");
+        toast.error("Download stalled", { position: "top-right" });
+      }
+    } catch (error) {
+      const err = error as AxiosError;
+      console.error("Progress check error:", err.response?.data);
+      if (err.response?.status === 404) {
+        setError(
+          "Download task not found. It may have been cancelled or expired."
+        );
+        toast.error(
+          "Download task not found. It may have been cancelled or expired.",
+          {
+            position: "top-right",
+          }
+        );
+        setStatus("");
+        setDownloadId(null);
+        setProgress(0);
+      } else {
+        setError("Error checking progress");
+        toast.error("Error checking progress", { position: "top-right" });
+        setStatus("error");
+      }
+    }
+  }, [downloadId, status, lastProgressTime, videoInfo?.title]); // Dependencies are safe here
+
+  // Poll progress with initial delay
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (downloadId && status === "downloading") {
+      const timeout = setTimeout(() => {
+        console.log(`Starting progress polling for ${downloadId}`);
+        interval = setInterval(() => checkProgress(), 2000);
+      }, 2000); // Wait 2 seconds before polling starts
+      return () => {
+        clearTimeout(timeout);
+        if (interval) clearInterval(interval);
+      };
+    }
+  }, [downloadId, status, checkProgress]); // checkProgress is now defined
+
+  const fetchVideoInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const response = await axios.post(`${BASE_URL}/get_info`, { url });
-      setVideoInfo(response.data);
-      const videoEntry = {
+      const data = response.data;
+      const videoEntry: VideoEntry = {
         url,
-        title: response.data.title,
-        thumbnail: response.data.thumbnail,
-        duration: response.data.duration,
-        video_formats: response.data.video_formats,
+        title: data.title,
+        thumbnail: data.thumbnail,
+        duration: data.duration,
+        video_formats: data.video_formats,
         downloaded: false,
       };
       const updatedHistory = [videoEntry, ...history];
-      localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
       setHistory(updatedHistory);
+      setVideoInfo(videoEntry);
+      localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
     } catch (error) {
-      alert("Error fetching video info");
+      const err = error as AxiosError;
+      const errorMessage =
+        (err.response?.data as any)?.error ||
+        "Failed to fetch video info. Please check the URL.";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
     } finally {
       setLoading(false);
     }
   };
 
   const startDownload = async (formatId: string) => {
-    console.log("video Info:", videoInfo.url);
-    console.log("formate ID:", formatId);
-    console.log("URL:", url);
     if (!formatId) {
-      alert("Please select a video format to download");
+      setError("Please select a video format");
+      toast.error("Please select a video format", { position: "top-right" });
       return;
     }
+    setLoading(true);
+    setError(null);
+    setStatus("");
+
     try {
       const response = await axios.post(`${BASE_URL}/start_download`, {
-        url: url ?? videoInfo.url,
+        url: url || videoInfo?.url,
         video_format_id: formatId,
       });
-      setDownloadId(response.data.download_id);
+      console.log("Start download response:", response.data);
+      const { download_id } = response.data;
+      if (!download_id) throw new Error("No download ID returned");
+
+      setDownloadId(download_id);
       setStatus("downloading");
       setProgress(0);
+      setLastProgressTime(Date.now());
     } catch (error) {
-      alert("Error starting download");
+      const err = error as AxiosError;
+      console.error("Start download error:", err.response?.data);
+      const errorMessage =
+        (err.response?.data as any)?.error || "Failed to start download";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
+      setStatus("error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const checkProgress = async () => {
+  const cancelDownload = async () => {
+    if (!downloadId) {
+      setError("No active download to cancel");
+      toast.error("No active download to cancel", { position: "top-right" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post(`${BASE_URL}/cancel_download`, {
+        download_id: downloadId,
+      });
+      console.log("Cancel response:", response.data);
+      setStatus("");
+      setProgress(0);
+      setDownloadId(null);
+      toast.info("Download cancelled successfully", { position: "top-right" });
+    } catch (error) {
+      const err = error as AxiosError;
+      console.error("Cancel download error:", err.response?.data);
+      const errorMessage =
+        (err.response?.data as any)?.error || "Failed to cancel download";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadFile = async () => {
     if (!downloadId) return;
+
+    console.log(`Downloading file for ${downloadId}`);
     try {
       const response = await axios.get(
-        `${BASE_URL}/progress?download_id=${downloadId}`
+        `${BASE_URL}/get_file?download_id=${downloadId}`,
+        {
+          responseType: "blob",
+        }
       );
-      const data = response.data;
-
-      setProgress(data.progress);
-      setStatus(data.status);
-
-      if (data.status === "completed") {
-        setStatus("completed");
-        downloadFile();
-      } else if (data.status === "error") {
-        setStatus("error");
-      }
+      const blob = new Blob([response.data], { type: "video/mp4" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${videoInfo?.title || "video"}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      console.log("File downloaded successfully");
     } catch (error) {
-      console.error("Error checking progress:", error);
-      setStatus("error");
+      const err = error as AxiosError;
+      console.error("Download error:", err.response?.data);
+      setError("Failed to retrieve downloaded file");
+      toast.error("Failed to retrieve downloaded file", {
+        position: "top-right",
+      });
     }
   };
 
-  const downloadFile = () => {
-    if (!downloadId) return;
-    const link = document.createElement("a");
-    link.href = `${BASE_URL}/get_file?download_id=${downloadId}`;
-    link.download = "video.mp4";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
-  const handleDownloadComplete = () => {
-    // You can add more logic here, like updating history or notifying the user
-    alert("Download completed!");
+  const updateDownloadStatus = (downloaded: boolean) => {
+    if (!videoInfo) return;
+    const updatedHistory = history.map((entry) =>
+      entry.url === videoInfo.url ? { ...entry, downloaded } : entry
+    );
+    setHistory(updatedHistory);
+    localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
   };
 
   const removeHistory = (index: number) => {
     const updatedHistory = history.filter((_, i) => i !== index);
-    localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
     setHistory(updatedHistory);
+    localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
   };
 
   return (
-    <div className="bg-gray-900 text-white p-6 w-full min-h-screen  ">
-      <div className="flex mb-8 w-full justify-around flex-col md:flex-row items-center">
+    <div className="bg-gray-900 text-white min-h-screen flex flex-col">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
+
+      <header className="p-4 w-full flex flex-wrap items-start gap-4">
         <img
           src="/src/assets/images/logo.png"
-          alt="Logo"
-          className="w-32 h-auto"
+          alt="App Logo"
+          className="w-24 h-auto"
         />
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            fetchVideoInfo();
-          }}
-          className="flex flex-col md:flex-row justify-between items-center gap-5 w-full max-w-xl"
+          onSubmit={fetchVideoInfo}
+          className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-1 min-w-[300px]"
         >
           <input
             type="text"
@@ -131,46 +301,53 @@ const App: React.FC = () => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             required
-            className="w-full p-3 rounded mb-4 md:mb-0 bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             aria-label="YouTube URL input"
           />
           <button
             type="submit"
-            id="get-info-btn"
-            className="px-6 py-3 bg-blue-600 w-auto min-w-[150px] max-w-[300px] rounded transition duration-300 ease-in-out transform hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 active:scale-95"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 rounded transition duration-300 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-blue-400 disabled:cursor-not-allowed whitespace-nowrap"
             aria-label="Get video information"
           >
             {loading ? "Loading..." : "Get Info"}
           </button>
         </form>
-      </div>
-      <div className="flex flex-col md:flex-row justify-center items-start">
-        <History
-          history={history}
-          onVideoClick={(index) => {
-            setVideoInfo(history[index]);
-          }}
-          onRemove={removeHistory}
-        />
-        <div className="flex justify-center items-center w-full md:max-w-4xl">
-          <VideoInfo video={videoInfo} onDownload={startDownload} />
+      </header>
 
-          <ProgressBar
-            progress={progress}
-            status={status}
-            onDownloadComplete={handleDownloadComplete}
-          />
-
-          {status === "downloading" && (
-            <button
-              onClick={checkProgress}
-              className="mt-4 px-6 py-3 bg-yellow-600 rounded"
-            >
-              Check Progress
-            </button>
-          )}
+      {error && (
+        <div className="w-full max-w-3xl mx-auto p-3 bg-red-600 text-white rounded mb-4 flex justify-between items-center">
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="text-white hover:text-gray-200 focus:outline-none"
+            aria-label="Dismiss error"
+          >
+            ✕
+          </button>
         </div>
-      </div>
+      )}
+
+      <main className="flex flex-col md:flex-row w-full gap-4 p-4">
+        <section className="w-full md:w-2/5">
+          <History
+            history={history}
+            onVideoClick={(index) => setVideoInfo(history[index])}
+            onRemove={removeHistory}
+          />
+        </section>
+        <section className="w-full md:w-3/5 flex flex-col gap-4">
+          <VideoInfo
+            video={videoInfo}
+            onDownload={startDownload}
+            onCancel={cancelDownload} // Added cancel handler
+            disabled={loading}
+            status={status} // Pass status
+            progress={progress} // Pass progress
+          />
+        </section>
+      </main>
     </div>
   );
 };
