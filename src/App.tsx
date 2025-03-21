@@ -4,6 +4,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import VideoInfo from "./components/VideoInfo";
 import History from "./components/History";
+import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 
 interface VideoFormat {
   format_id: string;
@@ -270,6 +271,16 @@ const App: React.FC = () => {
     localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
   };
 
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUrl(text);
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+      toast.error("Failed to paste from clipboard", { position: "top-right" });
+    }
+  };
+
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col">
       <ToastContainer
@@ -285,7 +296,7 @@ const App: React.FC = () => {
         theme="dark"
       />
 
-      <header className="p-4 w-full flex flex-wrap items-start gap-4">
+      <header className="p-4 w-full flex flex-wrap justify-center items-center gap-4">
         <img
           src="/src/assets/images/logo.png"
           alt="App Logo"
@@ -305,6 +316,16 @@ const App: React.FC = () => {
             className="w-full p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             aria-label="YouTube URL input"
           />
+          <button
+            type="button"
+            onClick={handlePaste}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-600 rounded transition duration-300 hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2"
+            aria-label="Paste URL from clipboard"
+          >
+            <ClipboardDocumentIcon className="w-5 h-5" />
+            Paste
+          </button>
           <button
             type="submit"
             disabled={loading}
