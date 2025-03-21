@@ -296,11 +296,11 @@ const App: React.FC = () => {
         theme="dark"
       />
 
-      <header className="p-4 w-full flex flex-wrap justify-center items-center gap-4">
+      <header className="p-5 md:p-4 w-full flex flex-wrap justify-center items-center gap-4">
         <img
           src="/src/assets/images/logo.png"
           alt="App Logo"
-          className="w-24 h-auto"
+          className="w-50 md:w-24 h-auto"
         />
         <form
           onSubmit={fetchVideoInfo}
@@ -350,7 +350,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="flex flex-col md:flex-row w-full gap-4 p-4">
+      <main className="flex flex-col-reverse md:flex-row w-full gap-4 p-4">
         <section className="w-full md:w-2/5">
           <History
             history={history}
