@@ -79,6 +79,12 @@ const History: React.FC<HistoryProps> = ({
             </button>
           </div>
         ))}
+
+        {history.length === 0 && (
+          <div className="text-gray-400 text-center">
+            No search history found
+          </div>
+        )}
       </div>
     </div>
   );

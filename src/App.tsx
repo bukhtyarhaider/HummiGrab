@@ -153,9 +153,8 @@ const App: React.FC = () => {
           onRemove={removeHistory}
         />
         <div className="flex justify-center items-center w-full md:max-w-4xl">
-          {videoInfo && (
-            <VideoInfo video={videoInfo} onDownload={startDownload} />
-          )}
+          <VideoInfo video={videoInfo} onDownload={startDownload} />
+
           <ProgressBar
             progress={progress}
             status={status}
