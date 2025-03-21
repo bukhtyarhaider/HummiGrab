@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<"downloading" | "error" | "">("");
   const [error, setError] = useState<string | null>(null);
 
-  const BASE_URL = "http://0.0.0.0:5001";
+  const BASE_URL = "/api";
   const PROGRESS_TIMEOUT = 30000; // 30 seconds
 
   // Load history from localStorage on mount
