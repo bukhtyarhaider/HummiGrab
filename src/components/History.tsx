@@ -3,8 +3,8 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  TrashIcon,
   PlayCircleIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
 export interface HistoryProps {
@@ -14,16 +14,12 @@ export interface HistoryProps {
     duration?: number;
     downloaded: boolean;
     url: string;
+    hasSummary?: boolean;
   }[];
   onVideoClick: (index: number) => void;
-  onRemove: (index: number) => void;
 }
 
-const History: React.FC<HistoryProps> = ({
-  history,
-  onVideoClick,
-  onRemove,
-}) => {
+const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
   const formatDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -64,30 +60,32 @@ const History: React.FC<HistoryProps> = ({
                     ? `Duration: ${formatDuration(video.duration)}`
                     : "Duration: N/A"}
                 </p>
-                <p className="text-sm text-gray-300 flex items-center mt-1">
-                  {video.downloaded ? (
-                    <CheckCircleIcon className="h-5 w-5 text-green-400 mr-2" />
-                  ) : (
-                    <XCircleIcon className="h-5 w-5 text-gray-400 mr-2" />
-                  )}
-                  <span>
-                    {video.downloaded ? "Downloaded" : "Not Downloaded"}
-                  </span>
-                </p>
+                <div className="text-sm text-gray-300 flex items-center mt-1 gap-4">
+                  <p className="flex items-center">
+                    {video.downloaded ? (
+                      <CheckCircleIcon className="h-5 w-5 text-green-400 mr-2" />
+                    ) : (
+                      <XCircleIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    )}
+                    <span>
+                      {video.downloaded ? "Downloaded" : "Not Downloaded"}
+                    </span>
+                  </p>
+                  <p className="flex items-center">
+                    {video.hasSummary ? (
+                      <DocumentTextIcon className="h-5 w-5 text-purple-400 mr-2" />
+                    ) : (
+                      <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    )}
+                    <span>
+                      {video.hasSummary ? "Summarized" : "Not Summarized"}
+                    </span>
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col md:flex-row items-center md:space-x-3 ml-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(index);
-                  }}
-                  className="text-red-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-full p-1 transition-colors"
-                  aria-label={`Remove ${video.title} from history`}
-                >
-                  <TrashIcon className="h-6 w-6" />
-                </button>
+              <div className="ml-4">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { VideoCameraIcon } from "@heroicons/react/24/outline";
+import { VideoCameraIcon, TrashIcon } from "@heroicons/react/24/outline";
+import Summary from "./Summary";
 
 export interface VideoInfoProps {
   video?: {
@@ -7,23 +8,40 @@ export interface VideoInfoProps {
     thumbnail: string;
     duration: number;
     video_formats: { format_id: string; label: string }[];
+    downloadId?: string;
+    summary?: string;
+    transcript?: string;
+    downloaded: boolean;
   };
   onDownload: (formatId: string) => void;
   onCancel: () => void;
+  onGenerateSummary: (downloadId: string) => Promise<void>;
+  onDelete?: () => void;
   disabled?: boolean;
   status: "downloading" | "error" | "";
   progress: number;
+  summary?: {
+    summary: string;
+    transcript: string;
+  };
+  downloadId?: string;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
   video,
   onDownload,
   onCancel,
+  onGenerateSummary,
+  onDelete,
   disabled,
   status,
   progress,
+  summary,
+  downloadId,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const [isGeneratingSummary, setIsGeneratingSummary] =
+    useState<boolean>(false);
 
   const formatDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -35,6 +53,16 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   };
 
   const isDownloading = status === "downloading";
+
+  const handleGenerateSummary = async () => {
+    if (!downloadId) return;
+    setIsGeneratingSummary(true);
+    try {
+      await onGenerateSummary(downloadId);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
 
   return (
     <div className="mt-8 bg-gray-800 p-6 rounded-lg shadow-md w-full">
@@ -75,7 +103,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                   id="video-select"
                   value={selectedFormat}
                   onChange={(e) => setSelectedFormat(e.target.value)}
-                  disabled={disabled || isDownloading} // Disable selection while downloading
+                  disabled={disabled || isDownloading}
                   className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Select video quality"
                 >
@@ -90,23 +118,45 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </select>
               </div>
 
-              {/* Combined Download/Cancel Button */}
-              <button
-                onClick={() =>
-                  isDownloading ? onCancel() : onDownload(selectedFormat)
-                }
-                disabled={!selectedFormat || disabled}
-                className={`w-full px-4 py-2 rounded-lg text-white font-medium transition duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 disabled:cursor-not-allowed ${
-                  isDownloading
-                    ? "bg-red-600 hover:bg-red-700 focus:ring-red-500 disabled:bg-red-400"
-                    : "bg-green-600 hover:bg-green-700 focus:ring-green-500 disabled:bg-gray-500"
-                }`}
-                aria-label={
-                  isDownloading ? "Cancel download" : "Download merged video"
-                }
-              >
-                {isDownloading ? "Cancel" : "Download"}
-              </button>
+              {/* Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    isDownloading ? onCancel() : onDownload(selectedFormat)
+                  }
+                  disabled={!selectedFormat || disabled}
+                  className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 disabled:cursor-not-allowed ${
+                    isDownloading
+                      ? "bg-red-600 hover:bg-red-700 focus:ring-red-500 disabled:bg-red-400"
+                      : "bg-green-600 hover:bg-green-700 focus:ring-green-500 disabled:bg-gray-500"
+                  }`}
+                  aria-label={
+                    isDownloading ? "Cancel download" : "Download merged video"
+                  }
+                >
+                  {isDownloading ? "Cancel" : "Download"}
+                </button>
+
+                {downloadId && video.downloaded && (
+                  <button
+                    onClick={handleGenerateSummary}
+                    disabled={disabled || isGeneratingSummary}
+                    className="flex-1 px-4 py-2 bg-purple-600 rounded-lg text-white font-medium transition duration-300 hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingSummary ? "Generating..." : "Get Summary"}
+                  </button>
+                )}
+
+                {onDelete && (
+                  <button
+                    onClick={onDelete}
+                    disabled={disabled}
+                    className="px-4 py-2 bg-red-600 rounded-lg text-white font-medium transition duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -129,6 +179,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               </div>
             </div>
           )}
+
+          {/* Summary */}
+          <Summary summary={summary} />
         </div>
       ) : (
         <p className="text-gray-400 text-center py-4">No video selected</p>
