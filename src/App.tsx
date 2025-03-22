@@ -18,6 +18,10 @@ interface VideoEntry {
   duration?: number;
   video_formats?: VideoFormat[];
   downloaded: boolean;
+  downloadId?: string;
+  summary?: string;
+  transcript?: string;
+  hasSummary?: boolean;
 }
 
 const App: React.FC = () => {
@@ -30,6 +34,10 @@ const App: React.FC = () => {
   const [lastProgressTime, setLastProgressTime] = useState<number>(0);
   const [status, setStatus] = useState<"downloading" | "error" | "">("");
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<{
+    summary: string;
+    transcript: string;
+  } | null>(null);
 
   const BASE_URL = "/api";
   const PROGRESS_TIMEOUT = 30000; // 30 seconds
@@ -42,6 +50,40 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Update generateSummary to return a Promise
+  const generateSummary = async (downloadId: string): Promise<void> => {
+    try {
+      const response = await axios.post(`api/generate_summary`, {
+        download_id: downloadId,
+      });
+      const summaryData = response.data;
+      setSummary(summaryData);
+
+      const updatedHistory = history.map((entry) =>
+        entry.downloadId === downloadId
+          ? {
+              ...entry,
+              summary: summaryData.summary,
+              transcript: summaryData.transcript,
+              hasSummary: true,
+            }
+          : entry
+      );
+      setHistory(updatedHistory);
+      localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
+
+      toast.success("Summary generated successfully", {
+        position: "top-right",
+      });
+    } catch (error) {
+      const err = error as AxiosError;
+      const errorMessage =
+        (err.response?.data as any)?.error || "Failed to generate summary";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
+      throw error;
+    }
+  };
   const checkProgress = useCallback(async () => {
     if (!downloadId || status !== "downloading") return;
 
@@ -69,6 +111,10 @@ const App: React.FC = () => {
         console.log("Download completed, fetching file...");
         await downloadFile();
         updateDownloadStatus(true);
+        // Update videoInfo immediately after download completes
+        setVideoInfo((prev) =>
+          prev ? { ...prev, downloaded: true, downloadId } : null
+        );
         toast.success(`Download completed: ${videoInfo?.title || "Video"}`, {
           position: "top-right",
         });
@@ -144,6 +190,7 @@ const App: React.FC = () => {
         duration: data.duration,
         video_formats: data.video_formats,
         downloaded: false,
+        hasSummary: false,
       };
       const updatedHistory = [videoEntry, ...history];
       setHistory(updatedHistory);
@@ -160,7 +207,6 @@ const App: React.FC = () => {
       setLoading(false);
     }
   };
-
   const startDownload = async (formatId: string) => {
     if (!formatId) {
       setError("Please select a video format");
@@ -259,12 +305,12 @@ const App: React.FC = () => {
   const updateDownloadStatus = (downloaded: boolean) => {
     if (!videoInfo) return;
     const updatedHistory = history.map((entry) =>
-      entry.url === videoInfo.url ? { ...entry, downloaded } : entry
+      entry.url === videoInfo.url ? { ...entry, downloaded, downloadId } : entry
     );
     setHistory(updatedHistory);
+    setVideoInfo((prev) => (prev ? { ...prev, downloaded, downloadId } : null));
     localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
   };
-
   const removeHistory = (index: number) => {
     const updatedHistory = history.filter((_, i) => i !== index);
     setHistory(updatedHistory);
@@ -354,7 +400,10 @@ const App: React.FC = () => {
         <section className="w-full md:w-2/5">
           <History
             history={history}
-            onVideoClick={(index) => setVideoInfo(history[index])}
+            onVideoClick={(index) => {
+              console.log(history[index]);
+              setVideoInfo(history[index]);
+            }}
             onRemove={removeHistory}
           />
         </section>
@@ -362,10 +411,32 @@ const App: React.FC = () => {
           <VideoInfo
             video={videoInfo}
             onDownload={startDownload}
-            onCancel={cancelDownload} // Added cancel handler
+            onCancel={cancelDownload}
+            onGenerateSummary={generateSummary}
+            onDelete={
+              videoInfo
+                ? () => {
+                    const index = history.findIndex(
+                      (v) => v.url === videoInfo.url
+                    );
+                    if (index !== -1) removeHistory(index);
+                    setVideoInfo(null);
+                    setSummary(null); // Clear summary when deleting
+                  }
+                : undefined
+            }
             disabled={loading}
-            status={status} // Pass status
-            progress={progress} // Pass progress
+            status={status}
+            progress={progress}
+            summary={
+              videoInfo?.summary && videoInfo?.transcript
+                ? {
+                    summary: videoInfo.summary,
+                    transcript: videoInfo.transcript,
+                  }
+                : summary
+            }
+            downloadId={videoInfo?.downloadId}
           />
         </section>
       </main>
