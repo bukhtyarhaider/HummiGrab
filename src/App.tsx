@@ -4,6 +4,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import VideoInfo from "./components/VideoInfo";
 import History from "./components/History";
+import TranscriptSummaryPanel from "./components/TranscriptSummaryPanel";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 
 interface VideoFormat {
@@ -11,7 +12,7 @@ interface VideoFormat {
   label: string;
 }
 
-interface VideoEntry {
+export interface VideoEntry {
   video_id: string;
   url: string;
   title: string;
@@ -23,6 +24,7 @@ interface VideoEntry {
   summary?: string;
   transcript?: string;
   hasSummary?: boolean;
+  hasTranscript?: boolean; // new field for transcript status
 }
 
 const App: React.FC = () => {
@@ -35,15 +37,11 @@ const App: React.FC = () => {
   const [lastProgressTime, setLastProgressTime] = useState<number>(0);
   const [status, setStatus] = useState<"downloading" | "error" | "">("");
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<{
-    summary: string;
-    transcript: string;
-  } | null>(null);
 
   const BASE_URL = "/api";
   const PROGRESS_TIMEOUT = 30000; // 30 seconds
 
-  // Helper function to extract YouTube video ID from various URL formats
+  // Helper to extract YouTube video ID
   const extractYouTubeVideoId = (url: string): string | null => {
     // This regex covers:
     // - https://www.youtube.com/watch?v=VIDEO_ID
@@ -56,7 +54,7 @@ const App: React.FC = () => {
     return match ? match[1] : null;
   };
 
-  // Load history from localStorage on mount
+  // Load history from localStorage
   useEffect(() => {
     const storedHistory = localStorage.getItem("videoHistory");
     if (storedHistory) {
@@ -64,15 +62,69 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Update generateSummary to return a Promise
+  // Generate transcript
+  const generateTranscript = async (downloadId: string): Promise<void> => {
+    try {
+      const response = await axios.post(`${BASE_URL}/generate_transcript`, {
+        download_id: downloadId,
+      });
+      const transcriptData = response.data;
+      setVideoInfo((prev) =>
+        prev
+          ? {
+              ...prev,
+              transcript: transcriptData.transcript,
+              hasTranscript: true,
+            }
+          : null
+      );
+      const updatedHistory = history.map((entry) =>
+        entry.downloadId === downloadId
+          ? {
+              ...entry,
+              transcript: transcriptData.transcript,
+              hasTranscript: true,
+            }
+          : entry
+      );
+      setHistory(updatedHistory);
+      localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
+      toast.success("Transcript generated successfully", {
+        position: "top-right",
+      });
+    } catch (error) {
+      const err = error as AxiosError;
+      const errorMessage =
+        (err.response?.data as any)?.error || "Failed to generate transcript";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
+      throw error;
+    }
+  };
+
+  // Generate summary (only works if transcript exists)
   const generateSummary = async (downloadId: string): Promise<void> => {
+    if (!videoInfo?.transcript) {
+      toast.error("Please generate transcript first", {
+        position: "top-right",
+      });
+      return;
+    }
     try {
       const response = await axios.post(`${BASE_URL}/generate_summary`, {
         download_id: downloadId,
       });
       const summaryData = response.data;
-      setSummary(summaryData);
-
+      setVideoInfo((prev) =>
+        prev
+          ? {
+              ...prev,
+              summary: summaryData.summary,
+              transcript: summaryData.transcript,
+              hasSummary: true,
+            }
+          : null
+      );
       const updatedHistory = history.map((entry) =>
         entry.downloadId === downloadId
           ? {
@@ -85,7 +137,6 @@ const App: React.FC = () => {
       );
       setHistory(updatedHistory);
       localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
-
       toast.success("Summary generated successfully", {
         position: "top-right",
       });
@@ -101,8 +152,6 @@ const App: React.FC = () => {
 
   const checkProgress = useCallback(async () => {
     if (!downloadId || status !== "downloading") return;
-
-    console.log(`Checking progress for ${downloadId}`);
     try {
       const response = await axios.get(
         `${BASE_URL}/progress?download_id=${downloadId}`
@@ -111,22 +160,15 @@ const App: React.FC = () => {
         progress,
         status: newStatus,
         error: backendError,
-        filename,
       } = response.data;
-      console.log("Progress response:", response.data);
-
       setProgress(progress);
       setStatus(newStatus);
-
       if (progress > 0 && progress < 100) {
         setLastProgressTime(Date.now());
       }
-
       if (newStatus === "completed") {
-        console.log("Download completed, fetching file...");
         await downloadFile();
         updateDownloadStatus(true);
-        // Update videoInfo immediately after download completes
         setVideoInfo((prev) =>
           prev ? { ...prev, downloaded: true, downloadId } : null
         );
@@ -154,7 +196,6 @@ const App: React.FC = () => {
       }
     } catch (error) {
       const err = error as AxiosError;
-      console.error("Progress check error:", err.response?.data);
       if (err.response?.status === 404) {
         setError(
           "Download task not found. It may have been cancelled or expired."
@@ -176,14 +217,12 @@ const App: React.FC = () => {
     }
   }, [downloadId, status, lastProgressTime, videoInfo?.title]);
 
-  // Poll progress with initial delay
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (downloadId && status === "downloading") {
       const timeout = setTimeout(() => {
-        console.log(`Starting progress polling for ${downloadId}`);
         interval = setInterval(() => checkProgress(), 2000);
-      }, 2000); // Wait 2 seconds before polling starts
+      }, 2000);
       return () => {
         clearTimeout(timeout);
         if (interval) clearInterval(interval);
@@ -191,33 +230,27 @@ const App: React.FC = () => {
     }
   }, [downloadId, status, checkProgress]);
 
-  // Updated fetchVideoInfo with URL validation and duplicate check
   const fetchVideoInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    // Validate URL and extract video ID
     const videoId = extractYouTubeVideoId(url);
     if (!videoId) {
       toast.error("Invalid YouTube URL", { position: "top-right" });
       setLoading(false);
       return;
     }
-
-    // Check if the video is already stored in history
     const duplicate = history.find((entry) => entry.video_id === videoId);
     if (duplicate) {
       toast.info("This video is already stored", { position: "top-right" });
       setLoading(false);
       return;
     }
-
     try {
       const response = await axios.post(`${BASE_URL}/get_info`, { url });
       const data = response.data;
       const videoEntry: VideoEntry = {
-        video_id: data.video_id, // New field from response
+        video_id: data.video_id,
         url,
         title: data.title,
         thumbnail: data.thumbnail,
@@ -225,6 +258,7 @@ const App: React.FC = () => {
         video_formats: data.video_formats,
         downloaded: false,
         hasSummary: false,
+        hasTranscript: false,
       };
       const updatedHistory = [videoEntry, ...history];
       setHistory(updatedHistory);
@@ -251,25 +285,21 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     setStatus("");
-
     try {
       const response = await axios.post(`${BASE_URL}/start_download`, {
         url: url || videoInfo?.url,
         video_format_id: formatId,
-        video_id: videoInfo?.video_id, // Pass video_id to backend
+        video_id: videoInfo?.video_id,
         title: videoInfo?.title,
       });
-      console.log("Start download response:", response.data);
       const { download_id } = response.data;
       if (!download_id) throw new Error("No download ID returned");
-
       setDownloadId(download_id);
       setStatus("downloading");
       setProgress(0);
       setLastProgressTime(Date.now());
     } catch (error) {
       const err = error as AxiosError;
-      console.error("Start download error:", err.response?.data);
       const errorMessage =
         (err.response?.data as any)?.error || "Failed to start download";
       setError(errorMessage);
@@ -288,17 +318,15 @@ const App: React.FC = () => {
     }
     setLoading(true);
     try {
-      const response = await axios.post(`${BASE_URL}/cancel_download`, {
+      await axios.post(`${BASE_URL}/cancel_download`, {
         download_id: downloadId,
       });
-      console.log("Cancel response:", response.data);
       setStatus("");
       setProgress(0);
       setDownloadId(null);
       toast.info("Download cancelled successfully", { position: "top-right" });
     } catch (error) {
       const err = error as AxiosError;
-      console.error("Cancel download error:", err.response?.data);
       const errorMessage =
         (err.response?.data as any)?.error || "Failed to cancel download";
       setError(errorMessage);
@@ -310,8 +338,6 @@ const App: React.FC = () => {
 
   const downloadFile = async () => {
     if (!downloadId) return;
-
-    console.log(`Downloading file for ${downloadId}`);
     try {
       const response = await axios.get(
         `${BASE_URL}/get_file?download_id=${downloadId}`,
@@ -328,10 +354,8 @@ const App: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      console.log("File downloaded successfully");
     } catch (error) {
       const err = error as AxiosError;
-      console.error("Download error:", err.response?.data);
       setError("Failed to retrieve downloaded file");
       toast.error("Failed to retrieve downloaded file", {
         position: "top-right",
@@ -360,7 +384,6 @@ const App: React.FC = () => {
       const text = await navigator.clipboard.readText();
       setUrl(text);
     } catch (err) {
-      console.error("Failed to read clipboard:", err);
       toast.error("Failed to paste from clipboard", { position: "top-right" });
     }
   };
@@ -370,7 +393,6 @@ const App: React.FC = () => {
       <ToastContainer
         position="top-right"
         autoClose={5000}
-        hideProgressBar={false}
         newestOnTop
         closeOnClick
         rtl={false}
@@ -379,7 +401,6 @@ const App: React.FC = () => {
         pauseOnHover
         theme="dark"
       />
-
       <header className="p-5 md:p-4 w-full flex flex-wrap justify-center items-center gap-4">
         <img
           src="/src/assets/images/logo.png"
@@ -404,7 +425,7 @@ const App: React.FC = () => {
             type="button"
             onClick={handlePaste}
             disabled={loading}
-            className="px-4 py-2 bg-gray-600 rounded transition duration-300 hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2"
+            className="px-4 py-2 bg-gray-600 rounded transition duration-300 hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2"
             aria-label="Paste URL from clipboard"
           >
             <ClipboardDocumentIcon className="w-5 h-5" />
@@ -413,14 +434,13 @@ const App: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 rounded transition duration-300 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-blue-400 disabled:cursor-not-allowed whitespace-nowrap"
+            className="px-4 py-2 bg-blue-600 rounded transition duration-300 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed whitespace-nowrap"
             aria-label="Get video information"
           >
             {loading ? "Loading..." : "Get Info"}
           </button>
         </form>
       </header>
-
       {error && (
         <div className="w-full max-w-3xl mx-auto p-3 bg-red-600 text-white rounded mb-4 flex justify-between items-center">
           <span>{error}</span>
@@ -433,16 +453,11 @@ const App: React.FC = () => {
           </button>
         </div>
       )}
-
       <main className="flex flex-col-reverse md:flex-row w-full gap-4 p-4">
         <section className="w-full md:w-2/5">
           <History
             history={history}
-            onVideoClick={(index) => {
-              console.log(history[index]);
-              setVideoInfo(history[index]);
-            }}
-            onRemove={removeHistory}
+            onVideoClick={(index) => setVideoInfo(history[index])}
           />
         </section>
         <section className="w-full md:w-3/5 flex flex-col gap-4">
@@ -450,7 +465,6 @@ const App: React.FC = () => {
             video={videoInfo}
             onDownload={startDownload}
             onCancel={cancelDownload}
-            onGenerateSummary={generateSummary}
             onDelete={
               videoInfo
                 ? () => {
@@ -459,23 +473,24 @@ const App: React.FC = () => {
                     );
                     if (index !== -1) removeHistory(index);
                     setVideoInfo(null);
-                    setSummary(null); // Clear summary when deleting
                   }
                 : undefined
             }
             disabled={loading}
             status={status}
             progress={progress}
-            summary={
-              videoInfo?.summary && videoInfo?.transcript
-                ? {
-                    summary: videoInfo.summary,
-                    transcript: videoInfo.transcript,
-                  }
-                : summary
-            }
             downloadId={videoInfo?.downloadId}
           />
+
+          {videoInfo && videoInfo.downloaded && videoInfo.downloadId && (
+            <TranscriptSummaryPanel
+              downloadId={videoInfo.downloadId}
+              video={videoInfo}
+              disabled={loading}
+              onGenerateTranscript={generateTranscript}
+              onGenerateSummary={generateSummary}
+            />
+          )}
         </section>
       </main>
     </div>

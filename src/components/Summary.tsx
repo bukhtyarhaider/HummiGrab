@@ -113,22 +113,6 @@ const Summary: React.FC<SummaryProps> = ({ summary }) => {
 
   return (
     <div className="mt-4 space-y-4">
-      {/* Summary Accordion */}
-      <div className="bg-gray-700 rounded-lg">
-        <button
-          onClick={() => setIsSummaryOpen(!isSummaryOpen)}
-          className="w-full p-4 text-left text-lg font-semibold flex justify-between items-center text-white hover:bg-gray-600 transition-colors"
-        >
-          Video Summary
-          <span className="text-gray-400">{isSummaryOpen ? "▼" : "▶"}</span>
-        </button>
-        {isSummaryOpen && (
-          <div className="p-4 pt-0 text-gray-200">
-            {parseMarkdown(summary.summary)}
-          </div>
-        )}
-      </div>
-
       {/* Transcript Accordion */}
       <div className="bg-gray-700 rounded-lg">
         <button
@@ -142,6 +126,22 @@ const Summary: React.FC<SummaryProps> = ({ summary }) => {
           <div className="p-4 pt-0 text-gray-200">
             {/* Transcript is typically plain text, but we'll parse it in case it contains Markdown */}
             {parseMarkdown(summary.transcript)}
+          </div>
+        )}
+      </div>
+
+      {/* Summary Accordion */}
+      <div className="bg-gray-700 rounded-lg">
+        <button
+          onClick={() => setIsSummaryOpen(!isSummaryOpen)}
+          className="w-full p-4 text-left text-lg font-semibold flex justify-between items-center text-white hover:bg-gray-600 transition-colors"
+        >
+          Video Summary
+          <span className="text-gray-400">{isSummaryOpen ? "▼" : "▶"}</span>
+        </button>
+        {isSummaryOpen && (
+          <div className="p-4 pt-0 text-gray-200">
+            {parseMarkdown(summary.summary)}
           </div>
         )}
       </div>

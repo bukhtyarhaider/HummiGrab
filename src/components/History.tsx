@@ -5,6 +5,7 @@ import {
   XCircleIcon,
   PlayCircleIcon,
   DocumentTextIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from "@heroicons/react/24/outline";
 
 export interface HistoryProps {
@@ -15,6 +16,7 @@ export interface HistoryProps {
     downloaded: boolean;
     url: string;
     hasSummary?: boolean;
+    hasTranscript?: boolean;
   }[];
   onVideoClick: (index: number) => void;
 }
@@ -31,10 +33,15 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
 
   return (
     <div className="mt-8 w-full">
-      <h2 className="text-xl font-semibold mb-4 flex items-center text-white">
-        <ClockIcon className="w-6 h-6 mr-2 text-gray-400" />
-        Search History
-      </h2>
+      <div className="flex justify-between items-center  mt-8  p-6">
+        <h2 className="text-xl font-semibold flex items-center text-white">
+          <ClockIcon className="w-6 h-6 mr-2 text-gray-400" />
+          Search History
+        </h2>
+        <div className="w-6 h-6 flex justify-center items-center bg-white font-bold text-black rounded">
+          <p>{history?.length ?? 0}</p>
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[60vh] p-2">
         {history.length > 0 ? (
           history.map((video, index) => (
@@ -43,14 +50,11 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
               className="flex items-center bg-gray-700 p-3 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-600 hover:scale-[1.02]"
               onClick={() => onVideoClick(index)}
             >
-              {/* Thumbnail */}
               <img
                 src={video.thumbnail}
                 alt={`${video.title} thumbnail`}
                 className="w-24 h-16 sm:w-32 sm:h-20 object-cover rounded-md mr-4 flex-shrink-0"
               />
-
-              {/* Video Info */}
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-white truncate">
                   {video.title}
@@ -60,7 +64,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                     ? `Duration: ${formatDuration(video.duration)}`
                     : "Duration: N/A"}
                 </p>
-                <div className="text-sm text-gray-300 flex items-center mt-1 gap-4">
+                <div className="text-sm text-gray-300 flex flex-wrap gap-4 mt-1">
                   <p className="flex items-center">
                     {video.downloaded ? (
                       <CheckCircleIcon className="h-5 w-5 text-green-400 mr-2" />
@@ -69,6 +73,18 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                     )}
                     <span>
                       {video.downloaded ? "Downloaded" : "Not Downloaded"}
+                    </span>
+                  </p>
+                  <p className="flex items-center">
+                    {video.hasTranscript ? (
+                      <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-green-400 mr-2" />
+                    ) : (
+                      <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    )}
+                    <span>
+                      {video.hasTranscript
+                        ? "Transcript Generated"
+                        : "Transcript Not Generated"}
                     </span>
                   </p>
                   <p className="flex items-center">
@@ -83,8 +99,6 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                   </p>
                 </div>
               </div>
-
-              {/* Action Buttons */}
               <div className="ml-4">
                 <button
                   onClick={(e) => {

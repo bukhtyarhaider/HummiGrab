@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { VideoCameraIcon, TrashIcon } from "@heroicons/react/24/outline";
-import Summary from "./Summary";
 
 export interface VideoInfoProps {
   video?: {
@@ -9,21 +8,14 @@ export interface VideoInfoProps {
     duration: number;
     video_formats: { format_id: string; label: string }[];
     downloadId?: string;
-    summary?: string;
-    transcript?: string;
     downloaded: boolean;
   };
   onDownload: (formatId: string) => void;
   onCancel: () => void;
-  onGenerateSummary: (downloadId: string) => Promise<void>;
   onDelete?: () => void;
   disabled?: boolean;
   status: "downloading" | "error" | "";
   progress: number;
-  summary?: {
-    summary: string;
-    transcript: string;
-  };
   downloadId?: string;
 }
 
@@ -31,17 +23,12 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   video,
   onDownload,
   onCancel,
-  onGenerateSummary,
   onDelete,
   disabled,
   status,
   progress,
-  summary,
-  downloadId,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<string>("");
-  const [isGeneratingSummary, setIsGeneratingSummary] =
-    useState<boolean>(false);
 
   const formatDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -54,16 +41,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
   const isDownloading = status === "downloading";
 
-  const handleGenerateSummary = async () => {
-    if (!downloadId) return;
-    setIsGeneratingSummary(true);
-    try {
-      await onGenerateSummary(downloadId);
-    } finally {
-      setIsGeneratingSummary(false);
-    }
-  };
-
   return (
     <div className="mt-8 bg-gray-800 p-6 rounded-lg shadow-md w-full">
       <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -73,7 +50,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
       {video ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Thumbnail */}
             <div className="md:w-1/3 flex-shrink-0">
               <img
                 src={video.thumbnail}
@@ -81,8 +57,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 className="w-full h-auto rounded-lg object-cover"
               />
             </div>
-
-            {/* Info and Controls */}
             <div className="md:w-2/3 flex flex-col justify-center gap-4">
               <h3 className="text-xl font-semibold text-white">
                 {video.title}
@@ -90,8 +64,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               <p className="text-gray-300">
                 Duration: {formatDuration(video.duration)}
               </p>
-
-              {/* Format Selection */}
               <div>
                 <label
                   htmlFor="video-select"
@@ -117,15 +89,13 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                   ))}
                 </select>
               </div>
-
-              {/* Buttons */}
               <div className="flex gap-2">
                 <button
                   onClick={() =>
                     isDownloading ? onCancel() : onDownload(selectedFormat)
                   }
                   disabled={!selectedFormat || disabled}
-                  className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 disabled:cursor-not-allowed ${
+                  className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${
                     isDownloading
                       ? "bg-red-600 hover:bg-red-700 focus:ring-red-500 disabled:bg-red-400"
                       : "bg-green-600 hover:bg-green-700 focus:ring-green-500 disabled:bg-gray-500"
@@ -136,17 +106,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 >
                   {isDownloading ? "Cancel" : "Download"}
                 </button>
-
-                {downloadId && video.downloaded && (
-                  <button
-                    onClick={handleGenerateSummary}
-                    disabled={disabled || isGeneratingSummary}
-                    className="flex-1 px-4 py-2 bg-purple-600 rounded-lg text-white font-medium transition duration-300 hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
-                  >
-                    {isGeneratingSummary ? "Generating..." : "Get Summary"}
-                  </button>
-                )}
-
                 {onDelete && (
                   <button
                     onClick={onDelete}
@@ -159,8 +118,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Progress Bar */}
           {status && (
             <div className="flex flex-col gap-4">
               <div className="w-full">
@@ -179,9 +136,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               </div>
             </div>
           )}
-
-          {/* Summary */}
-          <Summary summary={summary} />
         </div>
       ) : (
         <p className="text-gray-400 text-center py-4">No video selected</p>
