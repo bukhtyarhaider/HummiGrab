@@ -29,11 +29,31 @@ const parseMarkdown = (text: string): JSX.Element[] => {
     }
 
     // Heading
+    if (line.startsWith('" ')) {
+      elements.push(
+        <h2 key={index} className="text-2xl font-bold mt-4 mb-2 text-white">
+          {line.slice(2)}
+        </h2>
+      );
+      return;
+    }
+
+    // Heading
     if (line.startsWith("# ")) {
       elements.push(
         <h1 key={index} className="text-2xl font-bold mt-4 mb-2 text-white">
           {line.slice(2)}
         </h1>
+      );
+      return;
+    }
+
+    // Heading
+    if (line.startsWith("## ")) {
+      elements.push(
+        <h2 key={index} className="text-2xl font-bold mt-4 mb-2 text-white">
+          {line.slice(2)}
+        </h2>
       );
       return;
     }

@@ -12,6 +12,7 @@ interface VideoFormat {
 }
 
 interface VideoEntry {
+  video_id: string;
   url: string;
   title: string;
   thumbnail: string;
@@ -42,6 +43,19 @@ const App: React.FC = () => {
   const BASE_URL = "/api";
   const PROGRESS_TIMEOUT = 30000; // 30 seconds
 
+  // Helper function to extract YouTube video ID from various URL formats
+  const extractYouTubeVideoId = (url: string): string | null => {
+    // This regex covers:
+    // - https://www.youtube.com/watch?v=VIDEO_ID
+    // - https://youtu.be/VIDEO_ID
+    // - https://www.youtube.com/embed/VIDEO_ID
+    // - https://www.youtube.com/shorts/VIDEO_ID
+    const regex =
+      /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
   // Load history from localStorage on mount
   useEffect(() => {
     const storedHistory = localStorage.getItem("videoHistory");
@@ -53,7 +67,7 @@ const App: React.FC = () => {
   // Update generateSummary to return a Promise
   const generateSummary = async (downloadId: string): Promise<void> => {
     try {
-      const response = await axios.post(`api/generate_summary`, {
+      const response = await axios.post(`${BASE_URL}/generate_summary`, {
         download_id: downloadId,
       });
       const summaryData = response.data;
@@ -84,6 +98,7 @@ const App: React.FC = () => {
       throw error;
     }
   };
+
   const checkProgress = useCallback(async () => {
     if (!downloadId || status !== "downloading") return;
 
@@ -159,7 +174,7 @@ const App: React.FC = () => {
         setStatus("error");
       }
     }
-  }, [downloadId, status, lastProgressTime, videoInfo?.title]); // Dependencies are safe here
+  }, [downloadId, status, lastProgressTime, videoInfo?.title]);
 
   // Poll progress with initial delay
   useEffect(() => {
@@ -174,16 +189,35 @@ const App: React.FC = () => {
         if (interval) clearInterval(interval);
       };
     }
-  }, [downloadId, status, checkProgress]); // checkProgress is now defined
+  }, [downloadId, status, checkProgress]);
 
+  // Updated fetchVideoInfo with URL validation and duplicate check
   const fetchVideoInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validate URL and extract video ID
+    const videoId = extractYouTubeVideoId(url);
+    if (!videoId) {
+      toast.error("Invalid YouTube URL", { position: "top-right" });
+      setLoading(false);
+      return;
+    }
+
+    // Check if the video is already stored in history
+    const duplicate = history.find((entry) => entry.video_id === videoId);
+    if (duplicate) {
+      toast.info("This video is already stored", { position: "top-right" });
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.post(`${BASE_URL}/get_info`, { url });
       const data = response.data;
       const videoEntry: VideoEntry = {
+        video_id: data.video_id, // New field from response
         url,
         title: data.title,
         thumbnail: data.thumbnail,
@@ -207,6 +241,7 @@ const App: React.FC = () => {
       setLoading(false);
     }
   };
+
   const startDownload = async (formatId: string) => {
     if (!formatId) {
       setError("Please select a video format");
@@ -221,6 +256,8 @@ const App: React.FC = () => {
       const response = await axios.post(`${BASE_URL}/start_download`, {
         url: url || videoInfo?.url,
         video_format_id: formatId,
+        video_id: videoInfo?.video_id, // Pass video_id to backend
+        title: videoInfo?.title,
       });
       console.log("Start download response:", response.data);
       const { download_id } = response.data;
@@ -311,6 +348,7 @@ const App: React.FC = () => {
     setVideoInfo((prev) => (prev ? { ...prev, downloaded, downloadId } : null));
     localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
   };
+
   const removeHistory = (index: number) => {
     const updatedHistory = history.filter((_, i) => i !== index);
     setHistory(updatedHistory);
