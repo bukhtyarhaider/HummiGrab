@@ -63,10 +63,10 @@ const App: React.FC = () => {
   }, []);
 
   // Generate transcript
-  const generateTranscript = async (downloadId: string): Promise<void> => {
+  const generateTranscript = async (url: string): Promise<void> => {
     try {
       const response = await axios.post(`${BASE_URL}/generate_transcript`, {
-        download_id: downloadId,
+        url: url,
       });
       const transcriptData = response.data;
       setVideoInfo((prev) =>
@@ -79,7 +79,7 @@ const App: React.FC = () => {
           : null
       );
       const updatedHistory = history.map((entry) =>
-        entry.downloadId === downloadId
+        entry.video_id === transcriptData.video_id
           ? {
               ...entry,
               transcript: transcriptData.transcript,
@@ -93,6 +93,7 @@ const App: React.FC = () => {
         position: "top-right",
       });
     } catch (error) {
+      setLoading(false);
       const err = error as AxiosError;
       const errorMessage =
         (err.response?.data as any)?.error || "Failed to generate transcript";
@@ -103,7 +104,7 @@ const App: React.FC = () => {
   };
 
   // Generate summary (only works if transcript exists)
-  const generateSummary = async (downloadId: string): Promise<void> => {
+  const generateSummary = async (video_id: string): Promise<void> => {
     if (!videoInfo?.transcript) {
       toast.error("Please generate transcript first", {
         position: "top-right",
@@ -112,7 +113,7 @@ const App: React.FC = () => {
     }
     try {
       const response = await axios.post(`${BASE_URL}/generate_summary`, {
-        download_id: downloadId,
+        video_id: video_id,
       });
       const summaryData = response.data;
       setVideoInfo((prev) =>
@@ -120,17 +121,15 @@ const App: React.FC = () => {
           ? {
               ...prev,
               summary: summaryData.summary,
-              transcript: summaryData.transcript,
               hasSummary: true,
             }
           : null
       );
       const updatedHistory = history.map((entry) =>
-        entry.downloadId === downloadId
+        entry.video_id === summaryData.video_id
           ? {
               ...entry,
               summary: summaryData.summary,
-              transcript: summaryData.transcript,
               hasSummary: true,
             }
           : entry
@@ -482,9 +481,8 @@ const App: React.FC = () => {
             downloadId={videoInfo?.downloadId}
           />
 
-          {videoInfo && videoInfo.downloaded && videoInfo.downloadId && (
+          {videoInfo && (
             <TranscriptSummaryPanel
-              downloadId={videoInfo.downloadId}
               video={videoInfo}
               disabled={loading}
               onGenerateTranscript={generateTranscript}

@@ -1,20 +1,18 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
 import Summary from "./Summary";
+import { VideoEntry } from "../App";
+import { SparklesIcon } from "@heroicons/react/24/outline";
+import ActionButton from "./ActionButton";
 
 interface TranscriptSummaryPanelProps {
-  downloadId: string;
-  video: {
-    transcript?: string;
-    summary?: string;
-  };
+  video: VideoEntry;
   disabled?: boolean;
   onGenerateTranscript: (downloadId: string) => Promise<void>;
   onGenerateSummary: (downloadId: string) => Promise<void>;
 }
 
 const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
-  downloadId,
   video,
   disabled,
   onGenerateTranscript,
@@ -25,14 +23,8 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
 
   const handleTranscript = async () => {
     setIsGeneratingTranscript(true);
-    try {
-      await onGenerateTranscript(downloadId);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      toast.error("Failed to generate transcript");
-    } finally {
-      setIsGeneratingTranscript(false);
-    }
+    await onGenerateTranscript(video.url);
+    setIsGeneratingTranscript(false);
   };
 
   const handleSummary = async () => {
@@ -42,7 +34,7 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
     }
     setIsGeneratingSummary(true);
     try {
-      await onGenerateSummary(downloadId);
+      await onGenerateSummary(video.video_id);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to generate summary");
@@ -57,22 +49,26 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
         Transcript & Summary
       </h2>
       <div className="flex gap-4 mb-4">
-        <button
-          onClick={handleTranscript}
-          disabled={disabled || isGeneratingTranscript}
-          className="flex-1 px-4 py-2 bg-blue-600 rounded-lg text-white font-medium transition duration-300 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
-        >
-          {isGeneratingTranscript
-            ? "Generating Transcript..."
-            : "Get Transcript"}
-        </button>
-        <button
-          onClick={handleSummary}
-          disabled={disabled || isGeneratingSummary || !video.transcript}
-          className="flex-1 px-4 py-2 bg-purple-600 rounded-lg text-white font-medium transition duration-300 hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
-        >
-          {isGeneratingSummary ? "Generating Summary..." : "Get Summary"}
-        </button>
+        {!video.hasTranscript && (
+          <ActionButton
+            variant="primary"
+            handleAction={handleTranscript}
+            actionName={"Transcript"}
+            isLoading={isGeneratingTranscript}
+            disabled={disabled || isGeneratingTranscript}
+            icon={<SparklesIcon className="h-6" />}
+          />
+        )}
+        {!video.hasSummary && (
+          <ActionButton
+            variant="secondary"
+            handleAction={handleSummary}
+            actionName={"Summary"}
+            isLoading={isGeneratingSummary}
+            disabled={disabled || isGeneratingSummary || !video.transcript}
+            icon={<SparklesIcon className="h-6" />}
+          />
+        )}
       </div>
       {(video.transcript || video.summary) && (
         <Summary

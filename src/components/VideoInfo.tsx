@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { VideoCameraIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  VideoCameraIcon,
+  TrashIcon,
+  PlayCircleIcon,
+  FolderArrowDownIcon,
+  StopIcon,
+} from "@heroicons/react/24/outline";
+import ActionButton from "./ActionButton";
 
 export interface VideoInfoProps {
   video?: {
@@ -9,6 +16,7 @@ export interface VideoInfoProps {
     video_formats: { format_id: string; label: string }[];
     downloadId?: string;
     downloaded: boolean;
+    url: string;
   };
   onDownload: (formatId: string) => void;
   onCancel: () => void;
@@ -76,7 +84,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                   value={selectedFormat}
                   onChange={(e) => setSelectedFormat(e.target.value)}
                   disabled={disabled || isDownloading}
-                  className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed "
                   aria-label="Select video quality"
                 >
                   <option value="" disabled>
@@ -90,27 +98,40 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </select>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() =>
+                {video.url && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(video.url, "_blank");
+                    }}
+                    className="text-red-400 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-full p-2 transition-colors cursor-pointer"
+                    aria-label={`Open ${video.title} on YouTube`}
+                  >
+                    <PlayCircleIcon className="h-6 w-6" />
+                  </button>
+                )}
+
+                <ActionButton
+                  variant={isDownloading ? "danger" : "success"}
+                  handleAction={() =>
                     isDownloading ? onCancel() : onDownload(selectedFormat)
                   }
+                  actionName={isDownloading ? "Cancel" : "Download"}
                   disabled={!selectedFormat || disabled}
-                  className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition duration-300 focus:outline-none focus:ring-4 focus:ring-opacity-50 ${
-                    isDownloading
-                      ? "bg-red-600 hover:bg-red-700 focus:ring-red-500 disabled:bg-red-400"
-                      : "bg-green-600 hover:bg-green-700 focus:ring-green-500 disabled:bg-gray-500"
-                  }`}
-                  aria-label={
-                    isDownloading ? "Cancel download" : "Download merged video"
+                  icon={
+                    isDownloading ? (
+                      <StopIcon className="h-6" />
+                    ) : (
+                      <FolderArrowDownIcon className="h-6" />
+                    )
                   }
-                >
-                  {isDownloading ? "Cancel" : "Download"}
-                </button>
+                />
+
                 {onDelete && (
                   <button
                     onClick={onDelete}
                     disabled={disabled}
-                    className="px-4 py-2 bg-red-600 rounded-lg text-white font-medium transition duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-red-600 rounded-lg text-white font-medium transition duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 disabled:bg-gray-500 cursor-pointer disabled:cursor-not-allowed"
                   >
                     <TrashIcon className="h-5 w-5" />
                   </button>

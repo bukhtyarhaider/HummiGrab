@@ -7,6 +7,7 @@ import {
   DocumentTextIcon,
   ChatBubbleBottomCenterTextIcon,
 } from "@heroicons/react/24/outline";
+import { formatTimeFromSeconds } from "../utils";
 
 export interface HistoryProps {
   history: {
@@ -22,15 +23,6 @@ export interface HistoryProps {
 }
 
 const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
-  const formatDuration = (seconds: number): string => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs ? hrs + "h " : ""}${mins ? mins + "m " : ""}${
-      secs ? secs + "s" : ""
-    }`.trim();
-  };
-
   return (
     <div className="mt-8 w-full">
       <div className="flex justify-between items-center  mt-8  p-6">
@@ -61,7 +53,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                 </h3>
                 <p className="text-sm text-gray-300">
                   {video.duration
-                    ? `Duration: ${formatDuration(video.duration)}`
+                    ? `Duration: ${formatTimeFromSeconds(video.duration)}`
                     : "Duration: N/A"}
                 </p>
                 <div className="text-sm text-gray-300 flex flex-wrap gap-4 mt-1">
