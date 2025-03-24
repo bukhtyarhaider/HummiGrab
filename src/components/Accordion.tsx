@@ -6,7 +6,7 @@ interface AccordionProps {
   content: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
-  disabled: boolean;
+  disabled?: boolean;
 }
 
 const Accordion: React.FC<AccordionProps> = ({
@@ -14,10 +14,10 @@ const Accordion: React.FC<AccordionProps> = ({
   content,
   isOpen,
   onToggle,
-  disabled,
+  disabled = false,
 }) => {
   return (
-    <div className="bg-gray-700 rounded-lg flex flex-col h-full overflow-auto">
+    <div className="bg-gray-700 rounded-lg flex flex-col h-full">
       <button
         disabled={disabled}
         onClick={onToggle}
@@ -26,27 +26,27 @@ const Accordion: React.FC<AccordionProps> = ({
         aria-controls={`${title.toLowerCase().replace(" ", "-")}-content`}
       >
         {title}
-        <span
-          className={`text-gray-400 transition-transform duration-300 ease-in-out ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        >
-          ▼
-        </span>
+        {!disabled && (
+          <span
+            className={`text-gray-400 transition-transform duration-300 ease-in-out ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          >
+            ▼
+          </span>
+        )}
       </button>
       <AnimatePresence>
         {isOpen && (
           <motion.div
             id={`${title.toLowerCase().replace(" ", "-")}-content`}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="overflow-hidden flex-1"
+            className="flex-1 overflow-auto"
           >
-            <div className="p-4 pt-0 text-gray-200 overflow-auto">
-              {content}
-            </div>
+            <div className="p-4 pt-1 text-gray-200">{content}</div>
           </motion.div>
         )}
       </AnimatePresence>

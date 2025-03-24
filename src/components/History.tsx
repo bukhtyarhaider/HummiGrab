@@ -45,7 +45,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
       }}
     >
       <div className="mt-1 w-full">
-        <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[60vh] p-2">
+        <div className="grid grid-cols-1 gap-4 overflow-y-auto max-h-[70vh] p-2">
           {history.length > 0 ? (
             history.map((video, index) => (
               <div

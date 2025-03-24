@@ -56,8 +56,8 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
       onToggleExpand={toggleFullScreen}
     >
       <div
-        className={`flex-1 overflow-auto transition-all duration-500 ease-in-out ${
-          isFullScreen ? "p-4" : ""
+        className={`flex-1 transition-all duration-500 ease-in-out ${
+          isFullScreen ? "md:px-4" : ""
         }`}
       >
         <div

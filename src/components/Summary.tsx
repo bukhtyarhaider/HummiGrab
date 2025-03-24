@@ -44,7 +44,7 @@ const Summary: React.FC<SummaryProps> = ({ summary, isFullScreen = false }) => {
       ref={containerRef}
       className={`transition-all duration-500 ease-in-out flex-1 flex ${
         isFullScreen
-          ? "flex-row h-full gap-4 overflow-hidden"
+          ? "md:flex-row flex-col h-full gap-4"
           : "flex-col space-y-4"
       }`}
       style={{ height: isFullScreen ? `${panelHeight}px` : "auto" }}
@@ -52,15 +52,13 @@ const Summary: React.FC<SummaryProps> = ({ summary, isFullScreen = false }) => {
       {/* Transcript Section */}
       <div
         className={`transition-all duration-500 ease-in-out ${
-          isFullScreen ? "w-1/2 h-full overflow-hidden" : "w-full"
+          isFullScreen ? "md:w-1/2 w-full h-full" : "w-full"
         }`}
       >
         <Accordion
           disabled={isFullScreen}
           title="Video Transcript"
-          content={
-            <div className="overflow-auto h-full">{summary.transcript}</div>
-          }
+          content={<div className="h-full">{summary.transcript}</div>}
           isOpen={isTranscriptOpen}
           onToggle={() => setIsTranscriptOpen(!isTranscriptOpen)}
         />
@@ -69,14 +67,14 @@ const Summary: React.FC<SummaryProps> = ({ summary, isFullScreen = false }) => {
       {/* Summary Section */}
       <div
         className={`transition-all duration-500 ease-in-out ${
-          isFullScreen ? "w-1/2 h-full overflow-hidden" : "w-full"
+          isFullScreen ? "md:w-1/2 w-full h-full" : "w-full"
         }`}
       >
         <Accordion
           disabled={isFullScreen}
           title="Video Summary"
           content={
-            <div className="overflow-auto h-full">
+            <div className="h-full">
               <MarkdownParser markdown={summary.summary} />
             </div>
           }
