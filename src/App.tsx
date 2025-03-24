@@ -24,7 +24,7 @@ export interface VideoEntry {
   summary?: string;
   transcript?: string;
   hasSummary?: boolean;
-  hasTranscript?: boolean; // new field for transcript status
+  hasTranscript?: boolean;
 }
 
 const App: React.FC = () => {

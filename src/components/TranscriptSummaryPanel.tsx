@@ -2,14 +2,15 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import Summary from "./Summary";
 import { VideoEntry } from "../App";
-import { SparklesIcon } from "@heroicons/react/24/outline";
+import { DocumentIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import ActionButton from "./ActionButton";
+import { ExpandableCard } from "./ExpandableCard";
 
 interface TranscriptSummaryPanelProps {
   video: VideoEntry;
   disabled?: boolean;
-  onGenerateTranscript: (downloadId: string) => Promise<void>;
-  onGenerateSummary: (downloadId: string) => Promise<void>;
+  onGenerateTranscript: (videoID: string) => Promise<void>;
+  onGenerateSummary: (videoID: string) => Promise<void>;
 }
 
 const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
@@ -20,6 +21,7 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
 }) => {
   const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const handleTranscript = async () => {
     setIsGeneratingTranscript(true);
@@ -35,7 +37,6 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
     setIsGeneratingSummary(true);
     try {
       await onGenerateSummary(video.video_id);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to generate summary");
     } finally {
@@ -43,42 +44,58 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
     }
   };
 
+  const toggleFullScreen = () => {
+    setIsFullScreen((prev) => !prev);
+  };
+
   return (
-    <div className="mt-4 bg-gray-800 p-4 rounded-lg shadow-md w-full">
-      <h2 className="text-xl font-semibold mb-4 text-white">
-        Transcript & Summary
-      </h2>
-      <div className="flex gap-4 mb-4">
-        {!video.hasTranscript && (
-          <ActionButton
-            variant="primary"
-            handleAction={handleTranscript}
-            actionName={"Transcript"}
-            isLoading={isGeneratingTranscript}
-            disabled={disabled || isGeneratingTranscript}
-            icon={<SparklesIcon className="h-6" />}
-          />
-        )}
-        {!video.hasSummary && (
-          <ActionButton
-            variant="secondary"
-            handleAction={handleSummary}
-            actionName={"Summary"}
-            isLoading={isGeneratingSummary}
-            disabled={disabled || isGeneratingSummary || !video.transcript}
-            icon={<SparklesIcon className="h-6" />}
-          />
-        )}
-      </div>
-      {(video.transcript || video.summary) && (
+    <ExpandableCard
+      icon={<DocumentIcon className="w-6 h-6 mr-2 text-gray-400" />}
+      title="Transcript & Summary"
+      isExpanded={isFullScreen}
+      onToggleExpand={toggleFullScreen}
+    >
+      <div
+        className={`flex-1 overflow-auto transition-all duration-500 ease-in-out ${
+          isFullScreen ? "p-4" : ""
+        }`}
+      >
+        <div
+          className={`flex gap-4 mb-4 ${
+            isFullScreen ? "flex-row" : "flex-col sm:flex-row"
+          }`}
+        >
+          {!video.hasTranscript && (
+            <ActionButton
+              variant="primary"
+              handleAction={handleTranscript}
+              actionName={"Transcript"}
+              isLoading={isGeneratingTranscript}
+              disabled={disabled || isGeneratingTranscript}
+              icon={<SparklesIcon className="h-6" />}
+            />
+          )}
+          {!video.hasSummary && (
+            <ActionButton
+              variant="secondary"
+              handleAction={handleSummary}
+              actionName={"Summary"}
+              isLoading={isGeneratingSummary}
+              disabled={disabled || isGeneratingSummary || !video.transcript}
+              icon={<SparklesIcon className="h-6" />}
+            />
+          )}
+        </div>
+
         <Summary
+          isFullScreen={isFullScreen}
           summary={{
             transcript: video.transcript || "",
             summary: video.summary || "",
           }}
         />
-      )}
-    </div>
+      </div>
+    </ExpandableCard>
   );
 };
 

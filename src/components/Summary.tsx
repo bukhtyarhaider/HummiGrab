@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { JSX, useEffect, useRef, useState } from "react";
+import Accordion from "./Accordion";
 
 interface SummaryProps {
-  summary?: {
+  summary: {
     summary: string;
     transcript: string;
   };
+  isFullScreen?: boolean;
 }
 
 interface MarkdownElementProps {
@@ -185,45 +187,79 @@ const formatInline = (text: string): React.ReactNode => {
   return elements.length === 1 ? elements[0] : elements;
 };
 
-const Summary: React.FC<SummaryProps> = ({ summary }) => {
+const Summary: React.FC<SummaryProps> = ({ summary, isFullScreen = false }) => {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
+  const [panelHeight, setPanelHeight] = useState<number | "auto">("auto");
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  if (!summary) return null;
+  useEffect(() => {
+    if (isFullScreen) {
+      setIsTranscriptOpen(true);
+      setIsSummaryOpen(true);
+    }
+
+    if (!isFullScreen || !containerRef.current) {
+      setPanelHeight("auto");
+      return;
+    }
+
+    const updateHeight = () => {
+      if (containerRef.current) {
+        const availableHeight = window.innerHeight - 100;
+        setPanelHeight(availableHeight);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, [isFullScreen]);
 
   return (
-    <div className="mt-4 space-y-4">
-      {/* Transcript Accordion */}
-      <div className="bg-gray-700 rounded-lg">
-        <button
-          onClick={() => setIsTranscriptOpen(!isTranscriptOpen)}
-          className="w-full p-4 text-left text-lg font-semibold flex justify-between items-center text-white hover:bg-gray-600 transition-colors"
-        >
-          Video Transcript
-          <span className="text-gray-400">{isTranscriptOpen ? "▼" : "▶"}</span>
-        </button>
-        {isTranscriptOpen && (
-          <div className="p-4 pt-0 text-gray-200">
-            {/* Transcript is typically plain text, but we'll parse it in case it contains Markdown */}
-            {parseMarkdown(summary.transcript)}
-          </div>
-        )}
+    <div
+      ref={containerRef}
+      className={`transition-all duration-500 ease-in-out flex-1 flex ${
+        isFullScreen
+          ? "flex-row h-full gap-4 overflow-hidden"
+          : "flex-col space-y-4"
+      }`}
+      style={{ height: isFullScreen ? `${panelHeight}px` : "auto" }}
+    >
+      {/* Transcript Section */}
+      <div
+        className={`transition-all duration-500 ease-in-out ${
+          isFullScreen ? "w-1/2 h-full overflow-hidden" : "w-full"
+        }`}
+      >
+        <Accordion
+          disabled={isFullScreen}
+          title="Video Transcript"
+          content={
+            <div className="overflow-auto h-full">{summary.transcript}</div>
+          }
+          isOpen={isTranscriptOpen}
+          onToggle={() => setIsTranscriptOpen(!isTranscriptOpen)}
+        />
       </div>
 
-      {/* Summary Accordion */}
-      <div className="bg-gray-700 rounded-lg">
-        <button
-          onClick={() => setIsSummaryOpen(!isSummaryOpen)}
-          className="w-full p-4 text-left text-lg font-semibold flex justify-between items-center text-white hover:bg-gray-600 transition-colors"
-        >
-          Video Summary
-          <span className="text-gray-400">{isSummaryOpen ? "▼" : "▶"}</span>
-        </button>
-        {isSummaryOpen && (
-          <div className="p-4 pt-0 text-gray-200">
-            {parseMarkdown(summary.summary)}
-          </div>
-        )}
+      {/* Summary Section */}
+      <div
+        className={`transition-all duration-500 ease-in-out ${
+          isFullScreen ? "w-1/2 h-full overflow-hidden" : "w-full"
+        }`}
+      >
+        <Accordion
+          disabled={isFullScreen}
+          title="Video Summary"
+          content={
+            <div className="overflow-auto h-full">
+              {parseMarkdown(summary.summary)}
+            </div>
+          }
+          isOpen={isSummaryOpen}
+          onToggle={() => setIsSummaryOpen(!isSummaryOpen)}
+        />
       </div>
     </div>
   );
