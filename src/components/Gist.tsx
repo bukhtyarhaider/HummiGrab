@@ -3,7 +3,11 @@ import { toast } from "react-toastify";
 import Transcript from "./Transcript";
 import Summary from "./Summary";
 import { VideoEntry } from "../App";
-import { DocumentIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import {
+  ChatBubbleBottomCenterTextIcon,
+  DocumentIcon,
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline";
 import ActionButton from "./ActionButton";
 import { ExpandableCard } from "./ExpandableCard";
 
@@ -67,7 +71,7 @@ const Gist: React.FC<GistProps> = ({
               actionName={"Transcript"}
               isLoading={isGeneratingTranscript}
               disabled={disabled || isGeneratingTranscript}
-              icon={<SparklesIcon className="h-6" />}
+              icon={<ChatBubbleBottomCenterTextIcon className="h-6" />}
             />
             <ActionButton
               hidden={!video.transcript}
@@ -76,7 +80,7 @@ const Gist: React.FC<GistProps> = ({
               actionName={"Summary"}
               isLoading={isGeneratingSummary}
               disabled={disabled || isGeneratingSummary || !video.transcript}
-              icon={<SparklesIcon className="h-6" />}
+              icon={<DocumentTextIcon className="h-6" />}
             />
           </div>
         ),
