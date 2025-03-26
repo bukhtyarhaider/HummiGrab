@@ -6,6 +6,7 @@ import VideoInfo from "./components/VideoInfo";
 import History from "./components/History";
 import TranscriptSummaryPanel from "./components/TranscriptSummaryPanel";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
+import SentimentAnalysisPanel from "./components/SentimentAnalysisPanel";
 
 interface VideoFormat {
   format_id: string;
@@ -459,7 +460,7 @@ const App: React.FC = () => {
             onVideoClick={(index) => setVideoInfo(history[index])}
           />
         </section>
-        <section className="w-full md:w-3/5 flex flex-col gap-4">
+        <section className="w-full md:w-3/5 flex flex-col gap-1">
           <VideoInfo
             video={videoInfo}
             onDownload={startDownload}
@@ -488,6 +489,9 @@ const App: React.FC = () => {
               onGenerateTranscript={generateTranscript}
               onGenerateSummary={generateSummary}
             />
+          )}
+          {videoInfo && (
+            <SentimentAnalysisPanel url={videoInfo.url} disabled={loading} />
           )}
         </section>
       </main>
