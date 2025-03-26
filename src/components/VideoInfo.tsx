@@ -8,9 +8,10 @@ import {
 } from "@heroicons/react/24/outline";
 import ActionButton from "./ActionButton";
 import { ExpandableCard } from "./ExpandableCard";
+import { formatTimeFromSeconds } from "../utils";
 
 export interface VideoInfoProps {
-  video?: {
+  video: {
     title: string;
     thumbnail: string;
     duration: number;
@@ -38,19 +39,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   progress,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<string>("");
-
-  const formatDuration = (seconds: number): string => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs ? hrs + "h " : ""}${mins ? mins + "m " : ""}${
-      secs ? secs + "s" : ""
-    }`.trim();
-  };
-
   const isDownloading = status === "downloading";
-
   const [expandableState, setExpandableState] = useState<boolean>(false);
+
   return (
     <ExpandableCard
       icon={<VideoCameraIcon className="w-6 h-6 mr-2 text-gray-400" />}
@@ -76,7 +67,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                   {video.title}
                 </h3>
                 <p className="text-gray-300">
-                  Duration: {formatDuration(video.duration)}
+                  Duration: {formatTimeFromSeconds(video.duration)}
                 </p>
                 <div>
                   <label
