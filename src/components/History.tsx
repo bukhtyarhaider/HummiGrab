@@ -76,7 +76,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <XCircleIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>Downloaded</span>
+                      <span className="hidden md:block">Downloaded</span>
                     </p>
                     <p className="flex items-center">
                       {video.hasTranscript ? (
@@ -84,7 +84,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>Transcripted</span>
+                      <span className="hidden md:block">Transcripted</span>
                     </p>
                     <p className="flex items-center">
                       {video.hasSummary ? (
@@ -92,7 +92,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>Summarized</span>
+                      <span className="hidden md:block">Summarized</span>
                     </p>
                     <p className="flex items-center">
                       {video.hasAnalysis ? (
@@ -100,7 +100,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <ChatBubbleLeftRightIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>Analyzed</span>
+                      <span className="hidden md:block">Analyzed</span>
                     </p>
                   </div>
                 </div>
