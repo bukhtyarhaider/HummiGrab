@@ -6,6 +6,7 @@ import {
   PlayCircleIcon,
   DocumentTextIcon,
   ChatBubbleBottomCenterTextIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { formatTimeFromSeconds } from "../utils";
 import { ExpandableCard } from "./ExpandableCard";
@@ -19,6 +20,7 @@ export interface HistoryProps {
     url: string;
     hasSummary?: boolean;
     hasTranscript?: boolean;
+    hasAnalysis?: boolean;
   }[];
   onVideoClick: (index: number) => void;
 }
@@ -74,9 +76,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <XCircleIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>
-                        {video.downloaded ? "Downloaded" : "Not Downloaded"}
-                      </span>
+                      <span>Downloaded</span>
                     </p>
                     <p className="flex items-center">
                       {video.hasTranscript ? (
@@ -84,11 +84,7 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>
-                        {video.hasTranscript
-                          ? "Transcript Generated"
-                          : "Transcript Not Generated"}
-                      </span>
+                      <span>Transcripted</span>
                     </p>
                     <p className="flex items-center">
                       {video.hasSummary ? (
@@ -96,9 +92,15 @@ const History: React.FC<HistoryProps> = ({ history, onVideoClick }) => {
                       ) : (
                         <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                       )}
-                      <span>
-                        {video.hasSummary ? "Summarized" : "Not Summarized"}
-                      </span>
+                      <span>Summarized</span>
+                    </p>
+                    <p className="flex items-center">
+                      {video.hasAnalysis ? (
+                        <ChatBubbleLeftRightIcon className="h-5 w-5 text-purple-400 mr-2" />
+                      ) : (
+                        <ChatBubbleLeftRightIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      )}
+                      <span>Analyzed</span>
                     </p>
                   </div>
                 </div>

@@ -8,6 +8,28 @@ import TranscriptSummaryPanel from "./components/TranscriptSummaryPanel";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import SentimentAnalysisPanel from "./components/SentimentAnalysisPanel";
 
+interface SentimentSummary {
+  positive: { count: number; percentage: number };
+  negative: { count: number; percentage: number };
+  neutral: { count: number; percentage: number };
+  total_analyzed: number;
+  total_comments: number;
+}
+
+interface SentimentResult {
+  id: string;
+  text: string;
+  sentiment: "positive" | "negative" | "neutral";
+  polarity: number;
+  subjectivity: number;
+}
+
+export interface SentimentAnalysisResponse {
+  video_id: string;
+  sentiment_results: SentimentResult[];
+  sentiment_summary: SentimentSummary;
+}
+
 interface VideoFormat {
   format_id: string;
   label: string;
@@ -26,6 +48,8 @@ export interface VideoEntry {
   transcript?: string;
   hasSummary?: boolean;
   hasTranscript?: boolean;
+  sentimentData?: SentimentAnalysisResponse;
+  hasAnalysis?: boolean;
 }
 
 const App: React.FC = () => {
@@ -62,6 +86,39 @@ const App: React.FC = () => {
       setHistory(JSON.parse(storedHistory));
     }
   }, []);
+
+  const fetchSentimentAnalysis = async (videoUrl: string): Promise<void> => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${BASE_URL}/analyze_sentiment`, {
+        url: videoUrl,
+      });
+      const sentimentData: SentimentAnalysisResponse = response.data;
+
+      setVideoInfo((prev) =>
+        prev && prev.url === videoUrl
+          ? { ...prev, sentimentData, hasAnalysis: true }
+          : prev
+      );
+      const updatedHistory = history.map((entry) =>
+        entry.url === videoUrl
+          ? { ...entry, sentimentData, hasAnalysis: true }
+          : entry
+      );
+      setHistory(updatedHistory);
+      localStorage.setItem("videoHistory", JSON.stringify(updatedHistory));
+      toast.success("Sentiment analysis completed", { position: "top-right" });
+    } catch (error) {
+      const err = error as AxiosError;
+      const errorMessage =
+        (err.response?.data as any)?.error ||
+        "Failed to fetch sentiment analysis";
+      setError(errorMessage);
+      toast.error(errorMessage, { position: "top-right" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Generate transcript
   const generateTranscript = async (url: string): Promise<void> => {
@@ -259,6 +316,7 @@ const App: React.FC = () => {
         downloaded: false,
         hasSummary: false,
         hasTranscript: false,
+        hasAnalysis: false,
       };
       const updatedHistory = [videoEntry, ...history];
       setHistory(updatedHistory);
@@ -491,7 +549,13 @@ const App: React.FC = () => {
             />
           )}
           {videoInfo && (
-            <SentimentAnalysisPanel url={videoInfo.url} disabled={loading} />
+            <SentimentAnalysisPanel
+              disabled={loading}
+              sentimentData={videoInfo.sentimentData}
+              onFetchSentimentAnalysis={() =>
+                fetchSentimentAnalysis(videoInfo.url)
+              }
+            />
           )}
         </section>
       </main>

@@ -1,7 +1,5 @@
 // src/components/SentimentAnalysisPanel.tsx
 import React, { useState, useRef, useEffect } from "react";
-import axios, { AxiosError } from "axios";
-import { toast } from "react-toastify";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
 import { ExpandableCard } from "./ExpandableCard";
 import ActionButton from "./ActionButton";
@@ -29,19 +27,19 @@ interface SentimentAnalysisResponse {
 }
 
 interface SentimentAnalysisPanelProps {
-  url: string;
   disabled: boolean;
+  sentimentData: SentimentAnalysisResponse | undefined;
+  onFetchSentimentAnalysis: () => Promise<void>;
 }
 
-const PAGE_SIZE = 20; // Number of comments per page
+const PAGE_SIZE = 20;
 
 const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
-  url,
   disabled,
+  sentimentData,
+  onFetchSentimentAnalysis,
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [sentimentData, setSentimentData] =
-    useState<SentimentAnalysisResponse | null>(null);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
     "all" | "positive" | "negative" | "neutral"
@@ -53,27 +51,10 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
   ); // Paginated comments
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const BASE_URL = "/api";
-
-  const fetchSentimentAnalysis = async () => {
+  const handleFetchSentimentAnalysis = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${BASE_URL}/analyze_sentiment`, {
-        url: url,
-      });
-      const data: SentimentAnalysisResponse = response.data;
-      setSentimentData(data);
-      setIsExpanded(true);
-      setPage(1);
-      setDisplayedComments(data.sentiment_results.slice(0, PAGE_SIZE));
-      setHasMore(data.sentiment_results.length > PAGE_SIZE);
-      toast.success("Sentiment analysis completed", { position: "top-right" });
-    } catch (error) {
-      const err = error as AxiosError;
-      const errorMessage =
-        (err.response?.data as any)?.error ||
-        "Failed to fetch sentiment analysis";
-      toast.error(errorMessage, { position: "top-right" });
+      await onFetchSentimentAnalysis();
     } finally {
       setLoading(false);
     }
@@ -84,7 +65,6 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
       activeTab === "all" ? true : comment.sentiment === activeTab
     ) || [];
 
-  // Load more comments for the current tab
   const loadMoreComments = () => {
     if (!sentimentData || !hasMore || loading) return;
     setLoading(true);
@@ -99,7 +79,6 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
     setLoading(false);
   };
 
-  // Handle scroll event
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container || !isExpanded) return;
@@ -118,7 +97,6 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
     setHasMore(filteredComments.length > PAGE_SIZE);
   }, [activeTab, sentimentData]);
 
-  // Add scroll event listener
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
@@ -145,7 +123,7 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
             <div className="flex justify-between items-center">
               <ActionButton
                 variant="primary"
-                handleAction={fetchSentimentAnalysis}
+                handleAction={handleFetchSentimentAnalysis}
                 actionName="Analyze"
                 isLoading={loading}
                 disabled={disabled || loading}
@@ -165,7 +143,6 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
           )}
           {sentimentData && (
             <div>
-              {/* Summary Section (Always Visible) */}
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold text-white">Summary</h3>
               </div>
