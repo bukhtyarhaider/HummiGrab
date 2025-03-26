@@ -93,7 +93,7 @@ export const ExpandableCard: React.FC<ExpandableCardProps> = ({
       </div>
       <div
         className={`flex-1 overflow-auto transition-all duration-500 ease-in-out ${
-          isExpanded ? "p-4" : ""
+          isExpanded ? " p-1 md:p-4" : ""
         }`}
       >
         {children}
