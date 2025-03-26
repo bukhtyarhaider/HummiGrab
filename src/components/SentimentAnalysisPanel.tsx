@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// src/components/SentimentAnalysisPanel.tsx
+import React, { useState, useRef, useEffect } from "react";
 import axios, { AxiosError } from "axios";
 import { toast } from "react-toastify";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
@@ -32,6 +33,8 @@ interface SentimentAnalysisPanelProps {
   disabled: boolean;
 }
 
+const PAGE_SIZE = 20; // Number of comments per page
+
 const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
   url,
   disabled,
@@ -43,6 +46,12 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
   const [activeTab, setActiveTab] = useState<
     "all" | "positive" | "negative" | "neutral"
   >("all");
+  const [page, setPage] = useState<number>(1); // Current page for pagination
+  const [hasMore, setHasMore] = useState<boolean>(true); // Flag for more comments
+  const [displayedComments, setDisplayedComments] = useState<SentimentResult[]>(
+    []
+  ); // Paginated comments
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const BASE_URL = "/api";
 
@@ -54,7 +63,10 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
       });
       const data: SentimentAnalysisResponse = response.data;
       setSentimentData(data);
-      setIsExpanded(true); // Expand card on fetch
+      setIsExpanded(true);
+      setPage(1);
+      setDisplayedComments(data.sentiment_results.slice(0, PAGE_SIZE));
+      setHasMore(data.sentiment_results.length > PAGE_SIZE);
       toast.success("Sentiment analysis completed", { position: "top-right" });
     } catch (error) {
       const err = error as AxiosError;
@@ -72,10 +84,53 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
       activeTab === "all" ? true : comment.sentiment === activeTab
     ) || [];
 
+  // Load more comments for the current tab
+  const loadMoreComments = () => {
+    if (!sentimentData || !hasMore || loading) return;
+    setLoading(true);
+    const nextPage = page + 1;
+    const startIndex = (nextPage - 1) * PAGE_SIZE;
+    const endIndex = nextPage * PAGE_SIZE;
+    const moreComments = filteredComments.slice(startIndex, endIndex);
+
+    setDisplayedComments((prev) => [...prev, ...moreComments]);
+    setPage(nextPage);
+    setHasMore(endIndex < filteredComments.length);
+    setLoading(false);
+  };
+
+  // Handle scroll event
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !isExpanded) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    if (scrollTop + clientHeight >= scrollHeight - 50 && hasMore && !loading) {
+      loadMoreComments();
+    }
+  };
+
+  // Reset pagination when tab changes or data is fetched
+  useEffect(() => {
+    if (!sentimentData) return;
+    setPage(1);
+    setDisplayedComments(filteredComments.slice(0, PAGE_SIZE));
+    setHasMore(filteredComments.length > PAGE_SIZE);
+  }, [activeTab, sentimentData]);
+
+  // Add scroll event listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [sentimentData, page, hasMore, loading, activeTab]);
+
   return (
     <div
       className={`${
-        isExpanded ? "fixed inset-0 z-50  p-6 overflow-y-auto" : "relative"
+        isExpanded ? "fixed inset-0 z-50 p-6 overflow-y-auto" : "relative"
       }`}
     >
       <ExpandableCard
@@ -91,7 +146,7 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
               <ActionButton
                 variant="primary"
                 handleAction={fetchSentimentAnalysis}
-                actionName={"Analyize"}
+                actionName="Analyze"
                 isLoading={loading}
                 disabled={disabled || loading}
                 icon={<ChatBubbleLeftRightIcon className="h-6" />}
@@ -102,9 +157,10 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
         }}
       >
         <div className="mt-1 bg-gray-800 p-6 rounded-lg shadow-md w-full">
-          {!sentimentData && (
-            <p className="text-gray-400 mb-4">
-              Explore the sentiment of comments for this video.
+          {!sentimentData && !loading && (
+            <p className="text-gray-400 mb-4 text-center">
+              Click "Analyze" to explore the sentiment of comments for this
+              video.
             </p>
           )}
           {sentimentData && (
@@ -183,9 +239,20 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
                     ))}
                   </div>
 
-                  <div className="max-h-[60vh] overflow-y-auto space-y-4">
-                    {filteredComments.length > 0 ? (
-                      filteredComments.slice(0, 50).map((result) => (
+                  <div
+                    ref={scrollContainerRef}
+                    className="max-h-[60vh] overflow-y-auto space-y-4"
+                  >
+                    {filteredComments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <ChatBubbleLeftRightIcon className="w-12 h-12 mx-auto text-gray-500" />
+                        <p className="text-gray-400 mt-2">
+                          No {activeTab === "all" ? "" : activeTab} comments
+                          found for this video.
+                        </p>
+                      </div>
+                    ) : displayedComments.length > 0 ? (
+                      displayedComments.map((result) => (
                         <div
                           key={result.id}
                           className={`p-4 rounded-lg shadow-md transition-all duration-200 ${
@@ -222,9 +289,45 @@ const SentimentAnalysisPanel: React.FC<SentimentAnalysisPanelProps> = ({
                         </div>
                       ))
                     ) : (
+                      <div className="text-center py-8">
+                        <ChatBubbleLeftRightIcon className="w-12 h-12 mx-auto text-gray-500" />
+                        <p className="text-gray-400 mt-2">
+                          No {activeTab === "all" ? "" : activeTab} comments
+                          loaded yet.
+                        </p>
+                      </div>
+                    )}
+                    {loading && hasMore && (
+                      <div className="text-center py-4">
+                        <svg
+                          className="animate-spin h-6 w-6 mx-auto text-blue-400"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8v-8H4z"
+                          ></path>
+                        </svg>
+                        <p className="text-gray-400 mt-2">
+                          Loading more comments...
+                        </p>
+                      </div>
+                    )}
+                    {!hasMore && filteredComments.length > 0 && (
                       <p className="text-gray-400 text-center py-4">
-                        No {activeTab === "all" ? "" : activeTab} comments
-                        found.
+                        No more {activeTab === "all" ? "" : activeTab} comments
+                        to load.
                       </p>
                     )}
                   </div>
