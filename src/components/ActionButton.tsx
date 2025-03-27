@@ -11,6 +11,7 @@ interface ActionButtonProps {
   disabled?: boolean;
   isLoading?: boolean;
   icon?: ReactElement;
+  hidden?: boolean;
 }
 
 // Utility function to generate button classes based on variant and state
@@ -62,6 +63,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   disabled = false,
   isLoading = false,
   icon,
+  hidden = false,
 }) => {
   const [timer, setTimer] = useState<number>(0);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
@@ -96,6 +98,8 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     }
   };
 
+  if (hidden) return <></>;
+
   return (
     <button
       onClick={onClickHandler}
@@ -104,12 +108,12 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       aria-busy={isLoading}
       className={getButtonClasses(variant, isLoading, disabled)}
     >
-      <span className="flex items-center gap-2">
-        <span className="h-6 w-6 flex-shrink-0">
+      <span className="flex items-center gap-2 ">
+        <span className="h-6 w-6 flex-shrink-0 ">
           {isLoading ? <div className="spinner mr-2" /> : icon && icon}
         </span>
 
-        <span className={isLoading ? "animate-pulse" : ""}>
+        <span className={`hidden md:block ${isLoading ? "animate-pulse" : ""}`}>
           {isLoading ? `${actionName} in progress...` : `${actionName}`}
         </span>
 

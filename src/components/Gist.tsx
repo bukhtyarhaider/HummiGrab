@@ -1,19 +1,24 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
+import Transcript from "./Transcript";
 import Summary from "./Summary";
 import { VideoEntry } from "../App";
-import { DocumentIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import {
+  ChatBubbleBottomCenterTextIcon,
+  DocumentIcon,
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline";
 import ActionButton from "./ActionButton";
 import { ExpandableCard } from "./ExpandableCard";
 
-interface TranscriptSummaryPanelProps {
+interface GistProps {
   video: VideoEntry;
   disabled?: boolean;
   onGenerateTranscript: (videoID: string) => Promise<void>;
   onGenerateSummary: (videoID: string) => Promise<void>;
 }
 
-const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
+const Gist: React.FC<GistProps> = ({
   video,
   disabled,
   onGenerateTranscript,
@@ -37,6 +42,7 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
     setIsGeneratingSummary(true);
     try {
       await onGenerateSummary(video.video_id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to generate summary");
     } finally {
@@ -48,55 +54,68 @@ const TranscriptSummaryPanel: React.FC<TranscriptSummaryPanelProps> = ({
     setIsFullScreen((prev) => !prev);
   };
 
+  const hasContent = video.transcript || video.summary;
+
   return (
     <ExpandableCard
       icon={<DocumentIcon className="w-6 h-6 mr-2 text-gray-400" />}
-      title="Transcript & Summary"
+      title="Gist"
       isExpanded={isFullScreen}
       onToggleExpand={toggleFullScreen}
-    >
-      <div
-        className={`flex-1 transition-all duration-500 ease-in-out ${
-          isFullScreen ? "md:px-4" : ""
-        }`}
-      >
-        <div
-          className={`flex gap-4 mb-4 ${
-            isFullScreen ? "flex-row" : "flex-col sm:flex-row"
-          }`}
-        >
-          {!video.hasTranscript && (
+      actionBar={{
+        content: (
+          <div className="flex justify-between items-center gap-2">
             <ActionButton
               variant="primary"
               handleAction={handleTranscript}
               actionName={"Transcript"}
               isLoading={isGeneratingTranscript}
               disabled={disabled || isGeneratingTranscript}
-              icon={<SparklesIcon className="h-6" />}
+              icon={<ChatBubbleBottomCenterTextIcon className="h-6" />}
             />
-          )}
-          {!video.hasSummary && (
             <ActionButton
+              hidden={!video.transcript}
               variant="secondary"
               handleAction={handleSummary}
               actionName={"Summary"}
               isLoading={isGeneratingSummary}
               disabled={disabled || isGeneratingSummary || !video.transcript}
-              icon={<SparklesIcon className="h-6" />}
+              icon={<DocumentTextIcon className="h-6" />}
             />
-          )}
-        </div>
-
-        <Summary
-          isFullScreen={isFullScreen}
-          summary={{
-            transcript: video.transcript || "",
-            summary: video.summary || "",
-          }}
-        />
+          </div>
+        ),
+        position: "right",
+      }}
+    >
+      <div
+        className={`w-full h-fit transition-all duration-500 ease-in-out mt-2 ${
+          isFullScreen ? "md:px-4" : ""
+        }`}
+      >
+        {hasContent ? (
+          <div
+            className={`flex flex-col gap-4 ${
+              isFullScreen ? "md:flex-row" : ""
+            }`}
+          >
+            <Transcript
+              transcript={video.transcript || ""}
+              isFullScreen={isFullScreen}
+            />
+            <Summary
+              summary={video.summary || ""}
+              isFullScreen={isFullScreen}
+            />
+          </div>
+        ) : (
+          <div className="text-center text-gray-400 py-4">
+            <p>No transcript or summary available.</p>
+            <p>Click the "Transcript" button to get started.</p>
+          </div>
+        )}
       </div>
     </ExpandableCard>
   );
 };
 
-export default TranscriptSummaryPanel;
+export default Gist;

@@ -7,6 +7,7 @@ import History from "./components/History";
 import TranscriptSummaryPanel from "./components/TranscriptSummaryPanel";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import SentimentAnalysisPanel from "./components/SentimentAnalysisPanel";
+import Gist from "./components/Gist";
 
 interface SentimentSummary {
   positive: { count: number; percentage: number };
@@ -541,7 +542,7 @@ const App: React.FC = () => {
           />
 
           {videoInfo && (
-            <TranscriptSummaryPanel
+            <Gist
               video={videoInfo}
               disabled={loading}
               onGenerateTranscript={generateTranscript}
