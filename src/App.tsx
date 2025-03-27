@@ -542,12 +542,6 @@ const App: React.FC = () => {
           />
 
           {videoInfo && (
-            // <TranscriptSummaryPanel
-            //   video={videoInfo}
-            //   disabled={loading}
-            //   onGenerateTranscript={generateTranscript}
-            //   onGenerateSummary={generateSummary}
-            // />
             <Gist
               video={videoInfo}
               disabled={loading}
