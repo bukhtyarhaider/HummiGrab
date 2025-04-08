@@ -4,7 +4,6 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import VideoInfo from "./components/VideoInfo";
 import History from "./components/History";
-import TranscriptSummaryPanel from "./components/TranscriptSummaryPanel";
 import { ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import SentimentAnalysisPanel from "./components/SentimentAnalysisPanel";
 import Gist from "./components/Gist";
